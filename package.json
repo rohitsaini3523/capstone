@@ -1,0 +1,14 @@
+{
+  "name": "capstone",
+  "version": "1.0.0",
+  "description": "Implementation and Performance  Evaluation  of an Adaptive Cloud Storage Data Recovery Model",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
