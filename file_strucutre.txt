@@ -1,0 +1,38 @@
+project-root/
+│
+├── config/
+│   ├── credentials.env                     // Store your Google Drive API credentials here
+│   
+├── controllers/
+│   ├── authController.js                   // Controller for handling user authentication
+│   ├── fileController.js                   // Controller for file management
+│   ├── recoveryController.js               // Controller for recovery operations
+│   └── storageController.js                // Controller for cloud storage interactions (Google Drive, etc.)
+│
+├── middlewares/
+│   ├── authMiddleware.js                   // Middleware for handling user authentication checks
+│   └── errorMiddleware.js                  // Middleware for handling errors
+│
+├── routes/
+│   ├── authRoutes.js                       // Routes for user authentication
+│   ├── fileRoutes.js                       // Routes for file-related operations
+│   ├── recoveryRoutes.js                   // Routes for recovery-related operations
+│   └── storageRoutes.js                    // Routes for cloud storage interactions
+│
+├── services/
+│   ├── googleDriveService.js               // Service for interacting with Google Drive API
+│   ├── authServices.js                     // Service for user-related operations
+│   └── storageService.js                   // Service for cloud storage interactions
+│
+├── utils/
+│   ├── errorHandler.js                     // Utility for handling errors
+│   └── fileUpload.js                       // Utility for handling file uploads
+│
+├── views/
+│   └── login.ejs 
+|   └── register.ejs                           
+│
+├── .gitignore                              // Specify files/folders that should be ignored by Git
+├── app.js                                  // Main entry point for application
+├── package.json                            // Node.js project configuration
+└── README.md                               // Project documentation
