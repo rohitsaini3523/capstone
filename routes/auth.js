@@ -5,7 +5,6 @@ import { signUpBodyValidation, logInBodyValidation } from '../utils/validationSc
 import User from '../models/User.js';
 import UserToken from '../models/UserToken.js';
 import bcrypt from 'bcrypt';
-import google from 'googleapis';
 import generateTokens from '../utils/generateTokens.js';
 import session from 'express-session';
 
@@ -56,7 +55,6 @@ router.post("/signUp", async (req, res) => {
 });
 
 // login 
-
 router.get('/logIn', async (req, res) => {
 	// Get cookie accessToken from browser
 	const cookieHeader = req.headers['cookie'];
@@ -64,41 +62,44 @@ router.get('/logIn', async (req, res) => {
 		// Handle the case when the cookie header is not present
 		return res.render('logIn');
 	}
-	const cookiesArray = cookieHeader.split('; ');
+	else {
+		const cookiesArray = cookieHeader.split('; ');
+		// Extracting the values of specific cookies
+		let accessToken, connectSid;
 
-	// Extracting the values of specific cookies
-	let accessToken, connectSid;
+		for (const cookie of cookiesArray) {
+			const [name, value] = cookie.split('=');
 
-	for (const cookie of cookiesArray) {
-		const [name, value] = cookie.split('=');
-
-		if (name === 'accessToken') {
-			accessToken = value;
-		} else if (name === 'connect.sid') {
-			connectSid = value;
-		}
-	}
-	// Now accessToken and connectSid contain the values of the respective cookies
-	console.log('accessToken:', accessToken);
-	// console.log('connect.sid:', connectSid);
-
-	if (req.session && req.session.passport && req.session.passport.user) {
-		console.log('req.session.passport.user:', req.session.passport.user);
-		// fetch the user from the mongodb usertoken collection
-		const user = await User.findOne({ userName: req.session.passport.user });
-		if (user) {
-			const usertoken = await UserToken.findOne({ userId: user._id });
-			console.log('usertoken:', usertoken);
-			if (usertoken && usertoken.token === accessToken) {
-				// Check accessToken cookie and mongodb accessToken
-				return res.redirect('/dashboard');
+			if (name === 'accessToken') {
+				accessToken = value;
+			} else if (name === 'connect.sid') {
+				connectSid = value;
 			}
 		}
+		// Now accessToken and connectSid contain the values of the respective cookies
+		/* console.log('accessToken:', accessToken);
+		console.log('connect.sid:', connectSid);
+		console.log('req.session:', req.session); */
+		if (req.session && req.session.passport && req.session.passport.user) {
+			// console.log('req.session.passport.user:', req.session.passport.user);
+			// fetch the user from the mongodb usertoken collection
+			const user = await User.findOne({ userName: req.session.passport.user });
+			if (user) {
+				const usertoken = await UserToken.findOne({ userId: user._id });
+				console.log('usertoken:', usertoken);
+				if (usertoken && usertoken.token === accessToken) {
+					// Check accessToken cookie and mongodb accessToken
+					return res.redirect('/dashboard');
+				}
+			}
+		}
+		else {
+			// Clear the cookie if accessToken cookie and mongodb accessToken don't match or if not logged in
+			res.clearCookie('accessToken');
+			req.session.destroy();
+			return res.render('logIn');
+		}
 	}
-
-	// Clear the cookie if accessToken cookie and mongodb accessToken don't match or if not logged in
-	res.clearCookie('accessToken');
-	res.render('logIn');
 });
 
 router.post("/logIn", async (req, res) => {
@@ -108,12 +109,12 @@ router.post("/logIn", async (req, res) => {
 		if (error) {
 			return res.status(400).json({ error: true, message: error.details[0].message });
 		}
-
-		const user = await User.findOne({ email });
+		// console.log('email:', email);
+		const user = await User.findOne({ email: email });
+		console.log('user:', user);
 		if (!user) {
 			return res.status(401).json({ error: true, message: "Invalid email or password" });
 		}
-
 		const verifiedPassword = await bcrypt.compare(password, user.password);
 		if (!verifiedPassword) {
 			return res.status(401).json({ error: true, message: "Invalid email or password" });
@@ -137,7 +138,6 @@ router.post("/logIn", async (req, res) => {
 			httpOnly: true,
 			maxAge: 1000 * 60 * 60 * 24 * 30,
 		});
-
 		// Redirect to /auth/google after successful login
 		res.redirect('/auth/google');
 	} catch (err) {
@@ -153,7 +153,10 @@ function ensureAuthenticated(req, res, next) {
 	res.redirect('/logIn');
 }
 
-router.get('/auth/google', ensureAuthenticated, passport.authenticate('google', { scope: ['profile', 'email'] }));
+const storeReqMiddleware = (req, res, next) => {
+	storeReqMiddleware.req = req;
+	next();
+};
 
 router.get('/auth/google/callback',
 	passport.authenticate('google', { failureRedirect: '/logIn' }),
@@ -161,7 +164,7 @@ router.get('/auth/google/callback',
 		res.redirect('/dashboard');
 	}
 );
-
+router.get('/auth/google', ensureAuthenticated, storeReqMiddleware, passport.authenticate('google', { scope: ['profile', 'email'] }));
 passport.use(
 	new GoogleStrategy(
 		{
@@ -170,29 +173,54 @@ passport.use(
 			callbackURL: 'http://localhost:8080/auth/google/callback',
 		},
 		async (accessToken, refreshToken, profile, done) => {
+			//fetch data from ensureAuthenticated
 			try {
+				const req = storeReqMiddleware.req;
+				// console.log('req', req.session.user.email);
 				const profiledata = JSON.parse(profile._raw);
+				// console.log('profiledata:', profile);
 				const email = profiledata.email;
 				// console.log('email:', email);
 				// Check if the user already exists in your database
-				let user = await User.findOne({ googleId: profile.id });
+				// console.log('profile-email:', email);
+				const updateduser = await User.findOne({ userName: req.session.user.userName });
+				// console.log('Google user:', user);
 				// if user.conncted_accounts does not contain googleId then append it
-				const connectedAccounts = user['connected_accouts'];
-				console.log('connectedAccounts:', connectedAccounts);
-				if (!connectedAccounts.includes(profile.id) && profile.id) {
+				let connectedAccounts = updateduser.connected_accouts;
+				// console.log('connectedAccounts:', updateduser.email);
+				if (!connectedAccounts.includes(email) && profile.id) {
 					connectedAccounts.push(email);
-					user.connected_accounts = connectedAccounts;
-					await user.save();
+					updateduser.connected_accouts = connectedAccounts;
+					await updateduser.save();
 				}
-				console.log('user:', user);
-				//fetch google account details using profileid
-				
-				return done(null, user);
+				console.log('Updated user:', updateduser);
+				return done(null, updateduser);
 			} catch (error) {
 				return done(error);
 			}
 		}
 	),
 );
+//dashboard
+router.get('/dashboard',storeReqMiddleware,(req, res) => {
+	// console.log('req.session.passport.user:', req.session.passport.user);
+	// const user = await User.findOne({ userName: req.session.user.userName });
+	// console.log('user:', user);
+	return res.render('dashboard', { user: req.session.user });
+}
+);
+
+//logout route
+router.get('/logout', (req, res) => {
+	// req.logout();
+	req.session.destroy();
+	res.clearCookie('accessToken');
+	res.redirect('/logIn');
+});
+
+// if error occur then load error.ejs
+router.get('/error', (req, res) => res.render('error'));
+
+
 
 export default router;
