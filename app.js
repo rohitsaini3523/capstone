@@ -14,6 +14,7 @@ const app = express();
 config();
 dbConnect();
 app.set('view engine', 'ejs');
+app.use(express.static("public"));
 app.use(express.json());
 app.use(session({
     secret: process.env.SESSION_SECRET, // Replace with a strong, random string

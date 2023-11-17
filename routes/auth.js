@@ -20,6 +20,11 @@ router.use(
 		saveUninitialized: true,
 	})
 );
+//homepage
+router.get('/', (req, res) => {
+	res.render('homepage');
+});
+
 
 // signup or register
 router.get('/signUp', (req, res) => {
@@ -86,9 +91,9 @@ router.get('/logIn', async (req, res) => {
 			const user = await User.findOne({ userName: req.session.passport.user });
 			if (user) {
 				const usertoken = await UserToken.findOne({ userId: user._id });
-				console.log('usertoken:', usertoken);
 				if (usertoken && usertoken.token === accessToken) {
 					// Check accessToken cookie and mongodb accessToken
+					console.log("dashboard");
 					return res.redirect('/dashboard');
 				}
 			}
@@ -145,8 +150,18 @@ router.post("/logIn", async (req, res) => {
 		res.status(500).json({ error: true, message: "Internal Server Error" });
 	}
 });
+router.get('/auth/google/callback',
+	passport.authenticate('google', { failureRedirect: '/logIn' }),
+	(req, res) => {
+		res.redirect('/dashboard');
+	}
+);
 
 function ensureAuthenticated(req, res, next) {
+	if (req.path === '/logIn') {
+		return next();
+	}
+
 	if (req.session && req.session.user) {
 		return next();
 	}
@@ -158,12 +173,57 @@ const storeReqMiddleware = (req, res, next) => {
 	next();
 };
 
-router.get('/auth/google/callback',
-	passport.authenticate('google', { failureRedirect: '/logIn' }),
-	(req, res) => {
-		res.redirect('/dashboard');
+
+//logout route
+router.get('/logout', (req, res) => {
+	req.session.destroy(err => {
+		if (err) {
+			return res.redirect('/dashboard');
+		}
+
+		res.clearCookie('sid');
+		// Set headers to prevent caching
+		res.setHeader('Cache-Control', 'no-cache, private, no-store, must-revalidate, max-stale=0, post-check=0, pre-check=0');
+		res.redirect('/logIn');
+	});
+});
+
+const checkaccessToken = async (userName) => {
+	//check is user is present in usertoken collection
+	const user = await User.findOne({ userName: userName });
+	const usertoken = await UserToken.findOne({ userId: user._id });
+	if (usertoken) {
+		return usertoken.token;
 	}
-);
+	else {
+		return "0";
+	}
+};
+
+router.get('/dashboard', storeReqMiddleware, async (req, res) => {
+	if (storeReqMiddleware.req.session && storeReqMiddleware.req.session.passport && storeReqMiddleware.req.session.passport.user) {
+		//check if correct accessToken is present in the cookie
+		const accessToken = await checkaccessToken(storeReqMiddleware.req.session.passport.user);
+		console.log('storeReqMiddleware.req.session.passport.user:', storeReqMiddleware);
+		if (accessToken === req.headers.cookie.split('; ').find(cookie => cookie.startsWith('accessToken=')).split('=')[1]) {
+			return res.render('dashboard');
+		}
+		else {
+			// Clear the cookie if accessToken cookie and mongodb accessToken don't match or if not logged in
+			res.clearCookie('accessToken');
+			storeReqMiddleware.req.session.destroy();
+			return res.redirect('/logIn');
+		}
+	}
+	else {
+		// Clear the cookie if accessToken cookie and mongodb accessToken don't match or if not logged in
+		res.clearCookie('accessToken');
+		storeReqMiddleware.req.session.destroy();
+		return res.redirect('/logIn');
+	}
+});
+
+
 router.get('/auth/google', ensureAuthenticated, storeReqMiddleware, passport.authenticate('google', { scope: ['profile', 'email'] }));
 passport.use(
 	new GoogleStrategy(
@@ -176,7 +236,7 @@ passport.use(
 			//fetch data from ensureAuthenticated
 			try {
 				const req = storeReqMiddleware.req;
-				// console.log('req', req.session.user.email);
+				console.log('req', req.session.user);
 				const profiledata = JSON.parse(profile._raw);
 				// console.log('profiledata:', profile);
 				const email = profiledata.email;
@@ -201,25 +261,9 @@ passport.use(
 		}
 	),
 );
-//dashboard
-router.get('/dashboard',storeReqMiddleware,(req, res) => {
-	// console.log('req.session.passport.user:', req.session.passport.user);
-	// const user = await User.findOne({ userName: req.session.user.userName });
-	// console.log('user:', user);
-	return res.render('dashboard', { user: req.session.user });
-}
-);
-
-//logout route
-router.get('/logout', (req, res) => {
-	// req.logout();
-	req.session.destroy();
-	res.clearCookie('accessToken');
-	res.redirect('/logIn');
+router.all('*', (req, res) => {
+	res.redirect(''); // Redirect to the error page
 });
-
-// if error occur then load error.ejs
-router.get('/error', (req, res) => res.render('error'));
 
 
 

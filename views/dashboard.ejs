@@ -1,0 +1,57 @@
+<!-- dashboard.ejs -->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <!-- Add your CSS stylesheets or include Bootstrap or other libraries here -->
+</head>
+
+<body>
+    <header>
+        <h1>Welcome to the Dashboard, !</h1>
+    </header>
+
+    <section id="userInfo">
+        <h2>User Information</h2>
+        
+        <!-- Add more user details as needed -->
+    </section>
+
+    <section id="connectedAccounts">
+        <h2>Connected Google Accounts</h2>
+        <ul>
+    
+                    </ul>
+                    <button onclick="addAccount()">Add Google Account</button>
+    </section>
+
+    <section id="backupProgress">
+        <h2>Backup Progress</h2>
+        <!-- Add progress information for each connected account -->
+        
+    </section>
+
+    <footer>
+        <!-- Add footer content if necessary -->
+    </footer>
+
+    <!-- Add your JavaScript files or include libraries here -->
+    <script>
+        function removeAccount(account) {
+            // Implement logic to remove the specified Google account
+            console.log('Remove account:', account);
+        }
+
+        function addAccount() {
+            // Implement logic to add a new Google account
+            console.log('Add Google account');
+        }
+    </script>
+</body>
+
+</html>
