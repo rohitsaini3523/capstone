@@ -1,19 +1,32 @@
-body {
-  font-family: Arial, sans-serif;
-  background-color: #f4f4f4;
+html {
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100vh;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f4;
+  align-items: center;
+  justify-content: center;
   margin: 0;
+}
+
+.outermost-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: auto;
 }
 
 .container {
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  padding: 20px;
-  width: 300px;
+  padding: 30px; /* Increased padding for better spacing */
+  width: 350px; /* Increased width for better readability */
+  max-width: 100%;
 }
 
 .container h1 {
@@ -32,21 +45,22 @@ label {
 }
 
 input {
-  padding: 10px;
-  margin-bottom: 15px;
+  padding: 12px; /* Increased padding for better input appearance */
+  margin-bottom: 20px; /* Increased margin for better spacing */
   border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 6px; /* Slightly increased border radius */
   font-size: 16px;
 }
 
 button {
   background-color: #4caf50;
   color: white;
-  padding: 10px;
+  padding: 12px; /* Increased padding for better button appearance */
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 18px; /* Increased font size for better visibility */
+  transition: background-color 0.3s ease; /* Smooth transition for hover effect */
 }
 
 button:hover {
@@ -54,7 +68,7 @@ button:hover {
 }
 
 p {
-  margin-top: 10px;
+  margin-top: 15px; /* Increased margin for better spacing */
   text-align: center;
   color: #888;
 }
