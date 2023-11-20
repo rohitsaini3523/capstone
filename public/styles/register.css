@@ -1,10 +1,15 @@
-body {
-  font-family: Arial, sans-serif;
-  background-color: #f4f4f4;
+html {
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100vh;
+}
+
+body {
+  font-family: "Consolas", sans-serif;
+  background-color: #f4f4f4;
+  align-items: center;
+  justify-content: center;
   margin: 0;
 }
 
@@ -13,7 +18,7 @@ body {
   border-radius: 8px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   padding: 20px;
-  width: 300px;
+  width: 500px;
 }
 
 .container h1 {
