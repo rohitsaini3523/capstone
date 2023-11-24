@@ -7,6 +7,7 @@ import UserToken from '../models/UserToken.js';
 import bcrypt from 'bcrypt';
 import generateTokens from '../utils/generateTokens.js';
 import session from 'express-session';
+import { fetchGoogleDriveFileList } from '../utils/googleDriveFileList.js';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "928388932838-6n58nnred0umaetr2bm2t44511ucl0vv.apps.googleusercontent.com";
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "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";
@@ -204,7 +205,7 @@ router.get('/dashboard', storeReqMiddleware, async (req, res) => {
 	if (storeReqMiddleware.req.session && storeReqMiddleware.req.session.passport && storeReqMiddleware.req.session.passport.user) {
 		//check if correct accessToken is present in the cookie
 		const accessToken = await checkaccessToken(storeReqMiddleware.req.session.passport.user);
-		console.log('storeReqMiddleware.req.session.passport.user:', storeReqMiddleware);
+		// console.log('storeReqMiddleware.req.session.passport.user:', storeReqMiddleware);
 		if (accessToken === req.headers.cookie.split('; ').find(cookie => cookie.startsWith('accessToken=')).split('=')[1]) {
 			return res.render('dashboard');
 		}
@@ -224,7 +225,7 @@ router.get('/dashboard', storeReqMiddleware, async (req, res) => {
 });
 
 
-router.get('/auth/google', ensureAuthenticated, storeReqMiddleware, passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/auth/google', ensureAuthenticated, storeReqMiddleware, passport.authenticate('google', { scope: ['profile', 'email', 'https://www.googleapis.com/auth/drive.metadata.readonly'] }));
 passport.use(
 	new GoogleStrategy(
 		{
@@ -236,7 +237,7 @@ passport.use(
 			//fetch data from ensureAuthenticated
 			try {
 				const req = storeReqMiddleware.req;
-				console.log('req', req.session.user);
+				// console.log('req', req.session.user);
 				const profiledata = JSON.parse(profile._raw);
 				// console.log('profiledata:', profile);
 				const email = profiledata.email;
@@ -253,7 +254,13 @@ passport.use(
 					updateduser.connected_accouts = connectedAccounts;
 					await updateduser.save();
 				}
-				console.log('Updated user:', updateduser);
+				console.log('accessToken:', accessToken);
+				try {
+					const googleDriveFileList = await fetchGoogleDriveFileList(accessToken);
+					console.log('Google Drive File List:', googleDriveFileList);
+				} catch (error) {
+					console.error(error);
+				}
 				return done(null, updateduser);
 			} catch (error) {
 				return done(error);
