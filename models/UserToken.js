@@ -11,6 +11,9 @@ const userTokenSchema = new Schema({
 		type: String,
 		required: true,
 	},
+	accessToken: {
+		type: String,
+	},
 	createdAt: {
 		type: Date,
 		default: Date.now,

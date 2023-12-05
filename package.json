@@ -5,28 +5,34 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "nodemon server.js"
+    "start": "nodemon app.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "adm-zip": "^0.5.10",
     "bcrypt": "^5.0.1",
     "body-parser": "^1.20.2",
+    "cookie": "^0.6.0",
     "cookie-parser": "^1.4.6",
     "cookie-session": "^2.0.0",
     "crypto": "^1.0.1",
+    "diff": "^5.1.0",
     "dotenv": "^16.3.1",
     "ejs": "^3.1.9",
     "express": "^4.17.3",
     "express-session": "^1.17.3",
+    "fs": "^0.0.1-security",
     "googleapis": "^128.0.0",
     "joi": "^17.6.0",
     "joi-password-complexity": "^5.1.0",
     "jsonwebtoken": "^8.5.1",
     "mongoose": "^6.2.9",
+    "node-fetch": "^3.3.2",
     "passport": "^0.6.0",
-    "passport-google-oauth20": "^2.0.0"
+    "passport-google-oauth20": "^2.0.0",
+    "zlib": "^1.0.5"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"

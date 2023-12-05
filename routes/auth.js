@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import passport from 'passport';
+import fs from 'fs';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { signUpBodyValidation, logInBodyValidation } from '../utils/validationSchema.js';
 import User from '../models/User.js';
@@ -7,7 +8,8 @@ import UserToken from '../models/UserToken.js';
 import bcrypt from 'bcrypt';
 import generateTokens from '../utils/generateTokens.js';
 import session from 'express-session';
-import { fetchGoogleDriveFileList } from '../utils/googleDriveFileList.js';
+import { fetchFileMetadata, performRestore, fetchGoogleDriveFileList } from '../utils/googleDriveFileList.js';
+import { fetchGoogleDriveFile_List } from '../utils/googleDriveFileList.js';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "928388932838-6n58nnred0umaetr2bm2t44511ucl0vv.apps.googleusercontent.com";
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "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";
@@ -51,9 +53,7 @@ router.post("/signUp", async (req, res) => {
 
 		await new User({ ...req.body, password: hashPassword }).save();
 
-		res
-			.status(201)
-			.json({ error: false, message: "Account created successfully" });
+		res.redirect('/logIn');
 	} catch (err) {
 		console.log(err);
 		res.status(500).json({ error: true, message: "Internal Server Error" });
@@ -224,8 +224,11 @@ router.get('/dashboard', storeReqMiddleware, async (req, res) => {
 	}
 });
 
-
-router.get('/auth/google', ensureAuthenticated, storeReqMiddleware, passport.authenticate('google', { scope: ['profile', 'email', 'https://www.googleapis.com/auth/drive.metadata.readonly'] }));
+router.get('/auth/google', ensureAuthenticated, storeReqMiddleware, passport.authenticate('google', {
+	scope: ['profile', 'email', 'https://www.googleapis.com/auth/drive.metadata.readonly',
+		'https://www.googleapis.com/auth/drive.readonly',
+		'https://www.googleapis.com/auth/drive.file']
+}));
 passport.use(
 	new GoogleStrategy(
 		{
@@ -237,14 +240,23 @@ passport.use(
 			//fetch data from ensureAuthenticated
 			try {
 				const req = storeReqMiddleware.req;
-				// console.log('req', req.session.user);
+				console.log('req', req.session.user);
 				const profiledata = JSON.parse(profile._raw);
 				// console.log('profiledata:', profile);
 				const email = profiledata.email;
 				// console.log('email:', email);
 				// Check if the user already exists in your database
 				// console.log('profile-email:', email);
-				const updateduser = await User.findOne({ userName: req.session.user.userName });
+				let updateduser;
+				try {
+					updateduser = await User.findOne({ userName: req.session.user.userName });
+				}
+				catch (error) {
+					// use accessToken to fetch the userToken from the usertoken collection
+					const usertoken = await UserToken.findOne({ accessToken: accessToken });
+					console.log('usertoken:', usertoken);
+					updateduser = await User.findOne({ _id: usertoken.userId });
+				}
 				// console.log('Google user:', user);
 				// if user.conncted_accounts does not contain googleId then append it
 				let connectedAccounts = updateduser.connected_accouts;
@@ -255,12 +267,22 @@ passport.use(
 					await updateduser.save();
 				}
 				console.log('accessToken:', accessToken);
-				try {
-					const googleDriveFileList = await fetchGoogleDriveFileList(accessToken);
+				// store the accessToken in the usertoken accessToken field
+				const usertoken = await UserToken.findOne({ userId: updateduser._id });
+				if (usertoken) {
+					usertoken.accessToken = accessToken;
+					await usertoken.save();
+				}
+				else {
+					await new UserToken({ userId: updateduser._id, token: accessToken }).save();
+				}
+				/* try {
+					const folderPath = `./public/${updateduser.userName}/`;
+					const googleDriveFileList = await fetchGoogleDriveFileList(accessToken, folderPath);
 					console.log('Google Drive File List:', googleDriveFileList);
 				} catch (error) {
 					console.error(error);
-				}
+				} */
 				return done(null, updateduser);
 			} catch (error) {
 				return done(error);
@@ -268,10 +290,110 @@ passport.use(
 		}
 	),
 );
-router.all('*', (req, res) => {
-	res.redirect(''); // Redirect to the error page
+// this route is used to download the file from the google drive to the local storage and
+// then perform the backup
+
+router.get('/sync', storeReqMiddleware, async (req, res) => {
+	console.log('Sync and Backup route');
+	// console.log('storeReqMiddleware.req.session.user:', storeReqMiddleware);
+	// fetch the accessToken from the usertoken collection
+	const Usertoken = await UserToken.findOne({ token: req.headers.cookie.split('; ').find(cookie => cookie.startsWith('accessToken=')).split('=')[1] });
+	const accessToken = Usertoken.accessToken;
+	// Check if the request is coming from the dashboard
+	if (req.headers.referer && req.headers.referer.includes('/dashboard')) {
+		try {
+
+			const folderPath = `./public/${storeReqMiddleware.req.user.userName}/`;
+			const googleDriveFileList = await fetchGoogleDriveFileList(accessToken, folderPath);
+			console.log('Google Drive File List:', googleDriveFileList);
+			const jsonFilePath = `googleDriveFileList.json`;
+			// Convert the file list to JSON and write it to the file
+			try {
+				// write JSON string to a file with overwrite permission
+				fs.writeFileSync(jsonFilePath, JSON.stringify(googleDriveFileList, null, 4), 'utf-8');
+			} catch (error) {
+				console.error('Error writing file:', error);
+			}
+			res.redirect('/dashboard');
+		} catch (error) {
+			console.error('Error reading file:', error);
+			res.render('error');
+		}
+	} else {
+		// If not called from the dashboard, respond with an error or redirect to the dashboard
+		res.render('error');
+		// Alternatively, you can redirect to the dashboard
+		// res.redirect('/dashboard');
+	}
+});
+// route for restore
+router.get('/restore', storeReqMiddleware, async (req, res) => {
+	console.log('Restore route');
+	// console.log('storeReqMiddleware.req.session.user:', storeReqMiddleware);
+	// fetch the accessToken from the usertoken collection
+	const Usertoken = await UserToken.findOne({ token: req.headers.cookie.split('; ').find(cookie => cookie.startsWith('accessToken=')).split('=')[1] });
+	const accessToken = Usertoken.accessToken;
+	// Check if the request is coming from the dashboard
+	if (req.headers.referer && req.headers.referer.includes('/dashboard')) {
+		try {
+			const folderPath = `./public/${storeReqMiddleware.req.user.userName}/`;
+			console.log('folderPath:', folderPath);
+			const googleDriveFileList = await fetchGoogleDriveFile_List(accessToken, folderPath);
+			// console.log(typeof googleDriveFileList);
+			const fileListArray = googleDriveFileList.files || [];  // Default to an empty array if 'files' is not present
+			const extractedData = fileListArray.map(({ id, name }) => ({ id, name }));
+			// console.log('Extracted Data:', extractedData);
+			// make list of all ids in the extractedData
+			const googleDriveFileListIds = [];
+			for (const data of extractedData) {
+				googleDriveFileListIds.push(data.name);
+			}
+			console.log('googleDriveFileListIds:', googleDriveFileListIds);
+			const backupFolder = folderPath + 'backup/';
+			// console.log('backupFolder:', backupFolder);
+			// use the fileIds to restore the files
+			const filePath = folderPath + 'backup/';
+			const restore = async (filename) => {
+				const isrestored = await performRestore(accessToken, filename, filePath);
+				if (isrestored) {
+					console.log('File restored successfully');
+				}
+				else {
+					console.log('File not restored');
+				}
+			};
+			// make list of all file names in backup folder
+			const backupFolderFile = fs.readdirSync(backupFolder);
+			// console.log('backupFolderFile:', backupFolderFile);
+			// using the file names in backup folder, make list of all file names in backup folder
+			const backupFolderFileName = [];
+			for (const file of backupFolderFile) {
+				backupFolderFileName.push(file);
+			}
+			console.log('backupFolderFileName:', backupFolderFileName);
+			// find the difference between the two arrays to get the deleted files
+			const deletedFileIds = backupFolderFileName.filter(x => !googleDriveFileListIds.includes(x));
+			console.log('deletedFileIds:', deletedFileIds);
+			// restoring the file from the backup folder by uploading it to the google drive using the file name
+			for (const file of deletedFileIds) {
+				await restore(file);
+			}
+			res.redirect('/dashboard');
+		} catch (error) {
+			console.error('Error reading file:', error);
+			res.render('error');
+		}
+	} else {
+		// If not called from the dashboard, respond with an error or redirect to the dashboard
+		res.render('error');
+		// Alternatively, you can redirect to the dashboard
+		// res.redirect('/dashboard');
+	}
 });
 
 
+router.all('*', (req, res) => {
+	res.render('error')
+});
 
 export default router;

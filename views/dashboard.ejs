@@ -1,57 +1,33 @@
-<!-- dashboard.ejs -->
-
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
-    <!-- Add your CSS stylesheets or include Bootstrap or other libraries here -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/styles/login.css">
+    <title>DashBoard</title>
 </head>
 
 <body>
-    <header>
-        <h1>Welcome to the Dashboard, !</h1>
-    </header>
-
-    <section id="userInfo">
-        <h2>User Information</h2>
-        
-        <!-- Add more user details as needed -->
-    </section>
-
-    <section id="connectedAccounts">
-        <h2>Connected Google Accounts</h2>
-        <ul>
-    
-                    </ul>
-                    <button onclick="addAccount()">Add Google Account</button>
-    </section>
-
-    <section id="backupProgress">
-        <h2>Backup Progress</h2>
-        <!-- Add progress information for each connected account -->
-        
-    </section>
-
-    <footer>
-        <!-- Add footer content if necessary -->
-    </footer>
-
-    <!-- Add your JavaScript files or include libraries here -->
-    <script>
-        function removeAccount(account) {
-            // Implement logic to remove the specified Google account
-            console.log('Remove account:', account);
-        }
-
-        function addAccount() {
-            // Implement logic to add a new Google account
-            console.log('Add Google account');
-        }
-    </script>
+    <div class="outermost-container">
+        <div class="container">
+            <h1>DashBoard</h1>
+            <!-- Sync and Backup Now -->
+            <div class="form-group" style="text-align: center;">
+                <a href="/sync" class="btn btn-primary" id = "sync-now"> Sync Now</a>
+            </div>
+            <!-- Restore Now -->
+            <div class="form-group" style="text-align: center;">
+                <a href="/restore" class="btn btn-primary"> Restore Now</a>
+            </div>
+            <!-- logout -->
+            <div class="form-group" style="text-align: center;">
+                <a href="/logout" class="btn btn-primary"> Logout</a>
+            </div>
+        </div>
+    </div>
+    </div>
 </body>
 
 </html>
