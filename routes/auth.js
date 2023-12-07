@@ -8,7 +8,7 @@ import UserToken from '../models/UserToken.js';
 import bcrypt from 'bcrypt';
 import generateTokens from '../utils/generateTokens.js';
 import session from 'express-session';
-import { fetchFileMetadata, performRestore, fetchGoogleDriveFileList } from '../utils/googleDriveFileList.js';
+import {  performRestore, fetchGoogleDriveFileList } from '../utils/googleDriveFileList.js';
 import { fetchGoogleDriveFile_List } from '../utils/googleDriveFileList.js';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "928388932838-6n58nnred0umaetr2bm2t44511ucl0vv.apps.googleusercontent.com";
@@ -354,7 +354,7 @@ router.get('/restore', storeReqMiddleware, async (req, res) => {
 			// use the fileIds to restore the files
 			const filePath = folderPath + 'backup/';
 			const restore = async (filename) => {
-				const isrestored = await performRestore(accessToken, filename, filePath);
+				const isrestored = await performRestore(filename, filePath);
 				if (isrestored) {
 					console.log('File restored successfully');
 				}

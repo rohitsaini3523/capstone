@@ -1,8 +1,23 @@
 import fetch from 'node-fetch';
 import fs from 'fs/promises';
+import fs1 from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 import { diffLines } from 'diff';
+import { google } from 'googleapis';
+
+const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "928388932838-6n58nnred0umaetr2bm2t44511ucl0vv.apps.googleusercontent.com";
+const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "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";
+const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || "https://developers.google.com/oauthplayground";
+const Refresh_Token = "1//044Cx_nBOoFTUCgYIARAAGAQSNwF-L9Ire-8lZs8FmrHfXqM7VOv_x5uq7dMfAP47NjMbTXmHvtsavLow5mv5o1MsUnbJQjX7RgE";
+const oauth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
+oauth2Client.setCredentials({ refresh_token: Refresh_Token });
+
+const drive = google.drive({
+    version: 'v3',
+    auth: oauth2Client,
+});
+
 const API_BASE_URL = 'https://www.googleapis.com/drive/v3/files';
 let downloadedFiles = new Set();
 
@@ -36,8 +51,6 @@ const generateDifferentialBackup = (originalData, existingBackupData, originalFi
         originalFileMetadata.modifiedTime !== existingBackupString.split('\n')[0]
     ) {
         console.log('Detected changes in filesize or modified date. Generating differential backup.');
-
-        // Assuming you want to include the differences in content as well
         const originalString = originalData.toString();
         const differences = diffLines(existingBackupString, originalString);
         const patch = differences.map((part) => part.value).join('');
@@ -114,12 +127,8 @@ export const downloadFile = async (accessToken, fileId, folderPath) => {
             console.log(`Skipping already downloaded file: ${filePath}`);
             return;
         }
-
-        // Adjust the MIME type based on the file type you are downloading
         const mimeType = fileMetadata.mimeType;
         let exportLink = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
-
-        // Check if the MIME type is an image
         if (mimeType.startsWith('image/')) {
             exportLink += `&mimeType=${mimeType}`;
         }
@@ -127,17 +136,18 @@ export const downloadFile = async (accessToken, fileId, folderPath) => {
         const exportResponse = await fetch(exportLink, {
             method: 'GET',
             headers: createAuthHeader(accessToken),
+            responseType: 'arraybuffer', // Specify the responseType
         });
-
         const fileData = await exportResponse.arrayBuffer();
+        // if (mimeType === 'application/pdf') {
+        //     const pdfData = await exportResponse.arrayBuffer();
+        //     const pdfDoc = await PDFDocument.load(pdfData);
+        //     const pdfBytes = await pdfDoc.save();
         await fs.writeFile(filePath, Buffer.from(fileData));
-
         downloadedFiles.add(filePath);
         const backupFolderPath = path.join(folderPath, 'backup');
         await performBackup(accessToken, fileId, filePath, backupFolderPath);
-        // remove the file from the local storage
         await fs.unlink(filePath);
-        // store return data in json format in backup folder
         return {
             id: fileId,
             name: fileMetadata.name,
@@ -148,6 +158,7 @@ export const downloadFile = async (accessToken, fileId, folderPath) => {
         throw new Error('An error occurred during file download.');
     }
 };
+
 
 export const fetchGoogleDriveFileList = async (accessToken, folderPath = '/') => {
     console.log('Fetching Google Drive file list...');
@@ -236,40 +247,35 @@ const getContentType = (filePath) => {
     return contentTypeMap[fileExtension] || 'application/octet-stream';
 };
 
-const uploadFile = async (accessToken, filePath) => {
+const uploadFile = async (filePath) => {
     try {
-        const fileData = await fs.readFile(filePath);
-        const fileMetadata = {
-            name: path.basename(filePath),
-        };
-        const uploadUrl = `${API_BASE_URL}?uploadType=media`;
-        const response = await fetch(uploadUrl, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': getContentType(filePath),
+        const createFile = await drive.files.create({
+            requestBody: {
+                name: path.basename(filePath),
+                mimeType: getContentType(filePath),
             },
-            body: fileData,
+            media: {
+                mimeType: getContentType(filePath),
+                body: fs1.createReadStream(filePath),
+            }
         });
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error(errorData);
-            throw new Error(`Failed to upload file: ${response.statusText}`);
-        }
-        console.log('File uploaded successfully:', fileMetadata.name);
+        console.log(createFile.data);
     } catch (error) {
         console.error('An error occurred during file upload:', error);
-        throw new Error('An error occurred during file upload.');
     }
 };
 
-export const performRestore = async (accessToken, filename, backupFilePath) => {
-    try {
-        const backupFileExists = await fs.access(backupFilePath + filename).then(() => true).catch(() => false);
 
+export const performRestore = async (filename, backupFilePath) => {
+    try {
+        // console.log('filename', filename);
+        // console.log('backupFilePath', backupFilePath);
+        const backupFileExists = await fs.access(backupFilePath + filename).then(() => true).catch(() => false);
+        console.log('Performing restore operation...');
+        console.log(`Restoring file: ${backupFilePath + filename}`);
         if (backupFileExists) {
             console.log(`Local backup file found: ${backupFilePath + filename}`);
-            await uploadFile(accessToken, backupFilePath + filename);
+            await uploadFile(backupFilePath + filename);
             console.log('Restore complete.');
             return true;
         } else {

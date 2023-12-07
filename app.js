@@ -8,8 +8,11 @@ import authRoutes from "./routes/auth.js";
 import refreshTokenRoutes from "./routes/refreshToken.js";
 import userRoutes from "./routes/users.js";
 import User from "./models/User.js";
+import multer from "multer";
+import stream from "stream";
 
 const app = express();
+const upload = multer();
 
 config();
 dbConnect();
