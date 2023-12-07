@@ -306,8 +306,7 @@ router.get('/sync', storeReqMiddleware, async (req, res) => {
 			const folderPath = `./public/${storeReqMiddleware.req.user.userName}/`;
 			const googleDriveFileList = await fetchGoogleDriveFileList(accessToken, folderPath);
 			console.log('Google Drive File List:', googleDriveFileList);
-			const jsonFilePath = `googleDriveFileList.json`;
-			// Convert the file list to JSON and write it to the file
+			const jsonFilePath = `${storeReqMiddleware.req.user.userName}_googleDriveFileList.json`;
 			try {
 				// write JSON string to a file with overwrite permission
 				fs.writeFileSync(jsonFilePath, JSON.stringify(googleDriveFileList, null, 4), 'utf-8');
@@ -322,8 +321,6 @@ router.get('/sync', storeReqMiddleware, async (req, res) => {
 	} else {
 		// If not called from the dashboard, respond with an error or redirect to the dashboard
 		res.render('error');
-		// Alternatively, you can redirect to the dashboard
-		// res.redirect('/dashboard');
 	}
 });
 // route for restore
@@ -349,12 +346,11 @@ router.get('/restore', storeReqMiddleware, async (req, res) => {
 				googleDriveFileListIds.push(data.name);
 			}
 			console.log('googleDriveFileListIds:', googleDriveFileListIds);
-			const backupFolder = folderPath + 'backup/';
+			const backupFolder = folderPath;
 			// console.log('backupFolder:', backupFolder);
 			// use the fileIds to restore the files
-			const filePath = folderPath + 'backup/';
 			const restore = async (filename) => {
-				const isrestored = await performRestore(filename, filePath);
+				const isrestored = await performRestore(filename, backupFolder);
 				if (isrestored) {
 					console.log('File restored successfully');
 				}

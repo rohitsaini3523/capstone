@@ -1,0 +1,42 @@
+[
+    {
+        "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "parents": [
+            "0ADgZC66kAzBfUk9PVA"
+        ],
+        "size": "15020",
+        "id": "1LUChMjc4F4-8S1P0xXeTX6bAqTYuXztW",
+        "name": "Research Paper.docx",
+        "modifiedTime": "2023-12-07T11:32:03.976Z"
+    },
+    {
+        "mimeType": "application/pdf",
+        "parents": [
+            "0ADgZC66kAzBfUk9PVA"
+        ],
+        "size": "97587",
+        "id": "1uH4tMGRxYDDAJdsKEk1wOOISgjtFgk9m",
+        "name": "Backend-Intern-JD.pdf",
+        "modifiedTime": "2023-12-07T08:10:09.000Z"
+    },
+    {
+        "mimeType": "image/jpeg",
+        "parents": [
+            "0ADgZC66kAzBfUk9PVA"
+        ],
+        "size": "938222",
+        "id": "1lNSdIK9X7Y_q696d-gABRu7rAi8H5io9",
+        "name": "mobile_wallpaper212-720.jpg",
+        "modifiedTime": "2023-09-05T13:29:31.000Z"
+    },
+    {
+        "mimeType": "image/jpeg",
+        "parents": [
+            "0ADgZC66kAzBfUk9PVA"
+        ],
+        "size": "761522",
+        "id": "17yPpBZJqhzJnqOWMtM0HPMnpQvpQ6CrE",
+        "name": "mobile_wallpaper153-670.jpg",
+        "modifiedTime": "2023-09-05T13:29:14.000Z"
+    }
+]

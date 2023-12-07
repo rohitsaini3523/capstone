@@ -43,17 +43,13 @@ export const fetchFileMetadata = async (accessToken, fileId) => {
 };
 
 const generateDifferentialBackup = (originalData, existingBackupData, originalFileMetadata) => {
-    const existingBackupString = zlib.gunzipSync(existingBackupData).toString();
-
     // Check if there are changes in filesize or modified date
     if (
         originalFileMetadata.size !== existingBackupData.length ||
-        originalFileMetadata.modifiedTime !== existingBackupString.split('\n')[0]
+        originalFileMetadata.modifiedTime !== existingBackupData.toString('utf-8').split('\n')[0]
     ) {
         console.log('Detected changes in filesize or modified date. Generating differential backup.');
-        const originalString = originalData.toString();
-        const differences = diffLines(existingBackupString, originalString);
-        const patch = differences.map((part) => part.value).join('');
+        const patch = createDifferentialPatch(originalData, existingBackupData);
         return zlib.gzipSync(patch);
     } else {
         console.log('No changes in filesize or modified date. Skipping differential backup.');
@@ -61,13 +57,16 @@ const generateDifferentialBackup = (originalData, existingBackupData, originalFi
     }
 };
 
+const createDifferentialPatch = (originalData, existingBackupData) => {
+    const originalString = originalData.toString('utf-8');
+    const existingBackupString = existingBackupData.toString('utf-8');
+    const differences = diffLines(existingBackupString, originalString);
+    const patch = differences.map((part) => part.value).join('');
+    return patch;
+};
+
 const performDifferentialBackup = async (filePath, backupFilePath, originalFileMetadata) => {
     try {
-        // Check if the file exists before proceeding
-        if (!(await fs.access(filePath).then(() => true).catch(() => false))) {
-            console.log(`File does not exist: ${filePath}`);
-            return;
-        }
         const existingBackupData = await fs.readFile(backupFilePath);
         const differentialBackupData = generateDifferentialBackup(
             await fs.readFile(filePath),
@@ -86,68 +85,54 @@ const performDifferentialBackup = async (filePath, backupFilePath, originalFileM
     }
 };
 
-const performFullBackup = async (fileId, filePath, backupFilePath) => {
+const performFullBackup = async (filePath, backupFilePath) => {
     try {
         await fs.mkdir(path.dirname(backupFilePath), { recursive: true });
         const originalData = await fs.readFile(filePath);
-        const gzipData = zlib.gzipSync(originalData);
-        await fs.writeFile(backupFilePath, gzipData);
-        console.log(`Full backup created: ${backupFilePath}`);
+        const compressedData = zlib.gzipSync(originalData);
+        await fs.writeFile(backupFilePath, compressedData);
+        console.log(`Compressed full backup created: ${backupFilePath}`);
     } catch (error) {
-        console.error('Full backup operation failed:', error);
+        console.error('Compressed full backup operation failed:', error);
     }
 };
 
 
 const performBackup = async (accessToken, fileId, filePath, backupFolderPath) => {
-    if (backupFolderPath === undefined) {
-        backupFolderPath = path.join(path.dirname(filePath), 'backup');
-    }
     try {
         const backupFilePath = path.join(backupFolderPath, path.basename(filePath));
+        const originalFileMetadata = await fetchFileMetadata(accessToken, fileId);
+        // check the modifiedTime from the metadata and compare with the backup file
 
-        if (await fs.access(backupFilePath).then(() => true).catch(() => false)) {
-            // Fetch file metadata before calling performDifferentialBackup
-            const fileMetadata = await fetchFileMetadata(accessToken, fileId);
-            await performDifferentialBackup(fileId, filePath, backupFilePath, fileMetadata);
-        } else {
-            await performFullBackup(fileId, filePath, backupFilePath);
+        if (fs1.existsSync(backupFilePath)) {
+            console.log(`Backup file already exists: ${backupFilePath}`);
+            await performDifferentialBackup(filePath, backupFilePath,originalFileMetadata);
+        }  
+        else {
+            await performFullBackup(filePath, backupFilePath);
         }
+        // shift file to backup folder
+        console.log(`File moved to backup folder: ${backupFilePath}`);
     } catch (error) {
         console.error('Backup operation failed:', error);
     }
 };
 
+
 export const downloadFile = async (accessToken, fileId, folderPath) => {
     try {
         const fileMetadata = await fetchFileMetadata(accessToken, fileId);
         const filePath = path.join(folderPath, fileMetadata.name);
-
-        if (downloadedFiles.has(filePath)) {
-            console.log(`Skipping already downloaded file: ${filePath}`);
-            return;
-        }
-        const mimeType = fileMetadata.mimeType;
-        let exportLink = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
-        if (mimeType.startsWith('image/')) {
-            exportLink += `&mimeType=${mimeType}`;
-        }
-
+        const exportLink = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
         const exportResponse = await fetch(exportLink, {
             method: 'GET',
             headers: createAuthHeader(accessToken),
-            responseType: 'arraybuffer', // Specify the responseType
         });
-        const fileData = await exportResponse.arrayBuffer();
-        // if (mimeType === 'application/pdf') {
-        //     const pdfData = await exportResponse.arrayBuffer();
-        //     const pdfDoc = await PDFDocument.load(pdfData);
-        //     const pdfBytes = await pdfDoc.save();
-        await fs.writeFile(filePath, Buffer.from(fileData));
+
+        const fileData = await exportResponse.buffer(); // Use buffer() to get binary data
+        await fs.writeFile(filePath, fileData);
         downloadedFiles.add(filePath);
-        const backupFolderPath = path.join(folderPath, 'backup');
-        await performBackup(accessToken, fileId, filePath, backupFolderPath);
-        await fs.unlink(filePath);
+        await performBackup(accessToken,fileId, filePath, folderPath);
         return {
             id: fileId,
             name: fileMetadata.name,
@@ -158,6 +143,7 @@ export const downloadFile = async (accessToken, fileId, folderPath) => {
         throw new Error('An error occurred during file download.');
     }
 };
+
 
 
 export const fetchGoogleDriveFileList = async (accessToken, folderPath = '/') => {
